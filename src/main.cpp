@@ -1,42 +1,46 @@
 #include <cstdint>
 #define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
+#include <stb_image.h>
 
 #define STBI_MSC_SECURE_CRT
 #define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "stb_image_write.h"
+#include <stb_image_write.h>
 #include <iostream>
 
-using namespace std;
+#include <glm/vec3.hpp> // glm::vec3
+#include <glm/common.hpp>
+#include <image.h>
 
 int main() {
     
-    int image_width = 256;
-    int image_height = 256;
+    float scale = 0.5;
+    int image_width = 1024*scale;
+    int image_height = 1024*scale;
 
     // Image
-    uint8_t* img = new uint8_t[image_width * image_height * 3];
+    Image mImage(image_width, image_height, 3);
 
-    int index = 0;
-    for (int j = image_height - 1; j >= 0; --j)
+    for (int j = 0; j < image_height; j++) 
     {
-        for (int i = 0; i < image_width; ++i)
-            {
-            auto r = double(i) / (double)(image_width-1);
-            auto g = double(j) / (double)(image_height-1);
-            auto b = 0.0;
+        std::clog << "\rScanlines remaining: " << (image_height - j) << ' ' << std::flush;
+        for (int i = 0; i < image_width; i++)
+        {
+            float dist = pow(image_width / 2 - i, 2) + pow(image_height / 2 - j, 2);
+            dist = dist / pow(image_width, 2) * 2; // Normalize the distance
 
-            int ir = int(255.999 * r);
-            int ig = int(255.999 * g);
-            int ib = int(255.999 * b);
-            
-            img[index++] = ir;
-            img[index++] = ig;
-            img[index++] = ib;
+            mImage.set_pixel(glm::vec2(i, j), 
+                glm::vec3(
+                    dist > 0.2 ? 1-dist-0.3 : 0, 
+                    0,
+                    dist < 0.2 ? dist*10 : 0
+                )
+            );
         }
     }
+    std::clog << "\rDone!!                              \n";
 
-    stbi_write_jpg("img.jpg", image_width, image_height, 3, img, 100);
+
+    stbi_write_jpg("render.jpg", mImage.width, mImage.height, mImage.channels, mImage.data, 100);
 
     return 0;
 }
