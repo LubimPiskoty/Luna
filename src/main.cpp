@@ -8,33 +8,53 @@
 #include <iostream>
 
 #include <glm/vec3.hpp> // glm::vec3
-#include <glm/common.hpp>
+#include <glm/geometric.hpp>
+#include <glm/trigonometric.hpp>
 #include <image.h>
+#include <ray.h>
+#include <camera.h>
+
+using namespace glm;
+
+bool hit_sphere(const vec3& center, double radius, const Ray& r) {
+    vec3 oc = center - r.origin;
+    auto a = dot(r.direction, r.direction);
+    auto b = -2.0 * dot(r.direction, oc);
+    auto c = dot(oc, oc) - radius*radius;
+    auto discriminant = b*b - 4*a*c;
+    return (discriminant >= 0);
+}
+
+vec3 do_fragment(int x, int y, Camera camera) {
+    // Simple gradient
+    Ray ray = camera.create_ray(x, y);
+
+    if (hit_sphere(vec3(0, 0, -1), 0.5, ray))
+        return vec3(1, 0, 0);
+
+    auto color = mix(vec3(1, 1, 1), vec3(0.5, 0.7, 1.0), normalize(ray.direction).y * 0.5 + 0.5);
+    return color;
+}
+
 
 int main() {
     
-    float scale = 0.5;
-    int image_width = 1024*scale;
-    int image_height = 1024*scale;
+    const int resolution = 1024*1.0;
+    const float aspect_ratio = 4.f/5.f;
+
+    const int img_width = resolution;
+    const int img_height = img_width / aspect_ratio;
 
     // Image
-    Image mImage(image_width, image_height, 3);
+    Image mImage(img_width, img_height, 3);
+    Camera mCamera(vec3(0, 0, 0), 1, aspect_ratio, vec2(img_width, img_height));
 
-    for (int j = 0; j < image_height; j++) 
+    for (int j = 0; j < img_height; j++) 
     {
-        std::clog << "\rScanlines remaining: " << (image_height - j) << ' ' << std::flush;
-        for (int i = 0; i < image_width; i++)
+        std::clog << "\rScanlines remaining: " << (img_height - j) << ' ' << std::flush;
+        for (int i = 0; i < img_width; i++)
         {
-            float dist = pow(image_width / 2 - i, 2) + pow(image_height / 2 - j, 2);
-            dist = dist / pow(image_width, 2) * 2; // Normalize the distance
-
-            mImage.set_pixel(glm::vec2(i, j), 
-                glm::vec3(
-                    dist > 0.2 ? 1-dist-0.3 : 0, 
-                    0,
-                    dist < 0.2 ? dist*10 : 0
-                )
-            );
+            mImage.set_pixel(vec2(i, j), do_fragment(i, j, mCamera));
         }
     }
     std::clog << "\rDone!!                              \n";
