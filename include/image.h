@@ -29,18 +29,15 @@ public:
             return;
         }
 
-        // If the color values is out of bounds draw a pink pixel
-        if (color.r < 0 || color.g < 0 || color.b < 0 ||
-            color.r > 1 || color.g > 1 || color.b > 1 ) {
-            set_pixel(position, glm::vec3(1, 0, 1));
-            return;
-        }
+        // Translate the [0,1] component values to the byte range [0,255].
+        static const interval intensity(0.000, 0.999);
+        int rbyte = int(256 * intensity.clamp(color.r));
+        int gbyte = int(256 * intensity.clamp(color.g)); 
+        int bbyte = int(256 * intensity.clamp(color.b));
 
         uint64_t pixel_start = (this->width * (int)position.y + (int)position.x) * this->channels;
-
-        const float max_val = 255.99;
-        this->data[pixel_start + 0] = uint8_t(color.r * max_val);
-        this->data[pixel_start + 1] = uint8_t(color.g * max_val);
-        this->data[pixel_start + 2] = uint8_t(color.b * max_val);
+        this->data[pixel_start + 0] = rbyte; 
+        this->data[pixel_start + 1] = gbyte;
+        this->data[pixel_start + 2] = bbyte;
     }
 };
