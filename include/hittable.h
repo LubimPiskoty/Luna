@@ -4,11 +4,14 @@
 
 using namespace glm;
 
+class material;
+
 class hit_record {
 public:
     vec3 position, normal;
     float t;
     bool front_face;
+    shared_ptr<material> mat;
 };
 
 
@@ -16,5 +19,5 @@ class hittable {
 public:
     virtual ~hittable() = default;
 
-    virtual bool hit(const Ray& r, interval ray_t, hit_record& rec) const = 0;
+    virtual bool hit(const ray& r, interval ray_t, hit_record& rec) const = 0;
 };

@@ -2,15 +2,18 @@
 
 #include <ray.h>
 #include <helper.h>
-#include "hittable.h"
+#include <hittable.h>
+#include <material.h>
 
 using namespace glm;
 
 class Camera {
 public:
-   vec3 position;
-   float focal_length, aspect_ratio;
-   int img_width, img_height, sample_per_pixel;
+   vec3 position = vec3(0);
+   float focal_length = 1, aspect_ratio = 1;
+   int img_width = 32, img_height;
+   int sample_per_pixel = 100;
+   int max_depth = 10;
 
 private:
    vec2 view_size;
@@ -18,11 +21,10 @@ private:
    vec3 viewport_u, viewport_v; 
    vec3 viewport_upper_left, pixel00_pos;
 
-public:   
-   Camera(const vec3& position, float focal_length, float aspect_ratio, int img_width, int sample_per_pixel) : 
-      position(position), focal_length(focal_length), aspect_ratio(aspect_ratio),
-      img_width(img_width), img_height(img_width * aspect_ratio), sample_per_pixel(sample_per_pixel)
-      {
+public:
+   void initialize() {
+         img_height = img_width * (float)aspect_ratio;
+
          float scale = 2.0;
          view_size = vec2(
             scale * ((float)img_width / img_height),
@@ -39,29 +41,27 @@ public:
          pixel00_pos = viewport_upper_left + 0.5f * (pixel_delta_u + pixel_delta_v);
       }
 
-   Ray create_ray(int x, int y) {
+   ray create_ray(int x, int y) {
       vec3 offset(random_double() - 0.5, random_double() - 0.5, 0);
 
       auto pixel_center = pixel00_pos
          + (float(x + offset.x) * pixel_delta_u)
          + (float(y + offset.y) * pixel_delta_v);
 
-      return Ray(position, pixel_center - position);
+      return ray(position, pixel_center - position);
    }
 
    void render(const hittable& world, Image& target) {
-
+      initialize();
       for (int j = 0; j < img_height; j++) 
       {
          std::clog << "\rScanlines remaining: " << (img_height - j) << ' ' << std::flush;
          for (int i = 0; i < img_width; i++)
          {
             vec3 color(0);
-            for(int s = 0; s < sample_per_pixel; s++){
+            for(int s = 0; s < sample_per_pixel; s++)
+               color += ray_color(create_ray(i, j), max_depth, world);
 
-               color += ray_color(create_ray(i, j), world);
-
-            }
             target.set_pixel(vec2(i, j), color / (float)sample_per_pixel); 
          }
       }
@@ -70,11 +70,18 @@ public:
 
 private:
 
-   glm::vec3 ray_color(const Ray& r, const hittable& world) const {
+   glm::vec3 ray_color(const ray& r, int depth, const hittable& world) const {
+      if (depth == 0)
+         return vec3(0);
+
       hit_record rec;
 
-        if (world.hit(r, interval(0, infinity), rec)) {
-            return 0.5f * (rec.normal + glm::vec3(1));
+        if (world.hit(r, interval(0.001, infinity), rec)) {
+            ray scattered;
+            vec3 attenuation;
+            if (rec.mat->scatter(r, rec, attenuation, scattered))
+               return attenuation * ray_color(scattered, depth-1, world);
+            return vec3(0);
         }
 
         vec3 unit_direction = normalize(r.direction);

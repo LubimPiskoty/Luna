@@ -4,11 +4,12 @@
 
 using namespace glm;
 
-class Ray {
+class ray {
 public:
     vec3 origin, direction;
 
-    Ray(const vec3& origin, const vec3& direction) : origin(origin), direction(normalize(direction)) {}
+    ray() = default;
+    ray(const vec3& origin, const vec3& direction) : origin(origin), direction(normalize(direction)) {}
 
     const vec3& at(float t) const {
         return origin+direction*t;
