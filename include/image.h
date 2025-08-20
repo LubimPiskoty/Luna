@@ -19,7 +19,7 @@ public:
     }
 
     ~Image() {
-        delete data;
+        delete[] data;
     }
     
     void set_pixel(const glm::vec2& position, const glm::vec3& color) {
