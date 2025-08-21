@@ -68,3 +68,10 @@ inline bool near_zero(const glm::vec3& v) {
 inline glm::vec3 reflect(const glm::vec3& v, const glm::vec3& n) {
     return v - 2.0f*dot(v,n)*n;
 }
+
+inline glm::vec3 refract(const glm::vec3& uv, const glm::vec3& n, float etai_over_etat) {
+    float cos_theta = std::fmin(dot(-uv, n), 1.0);
+    glm::vec3 r_out_perp =  etai_over_etat * (uv + cos_theta*n);
+    glm::vec3 r_out_parallel = -std::sqrtf(std::fabs(1.0 - length2(r_out_perp))) * n;
+    return r_out_perp + r_out_parallel;
+}

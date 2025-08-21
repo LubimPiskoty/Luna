@@ -9,36 +9,49 @@ using namespace glm;
 
 class Camera {
 public:
-   vec3 position = vec3(0);
-   float focal_length = 1, aspect_ratio = 1;
+   float aspect_ratio = 1;
    int img_width = 32, img_height;
    int sample_per_pixel = 100;
-   int max_depth = 10;
+   int max_depth = 40;
+   float vfov = 60;
+
+   vec3 lookfrom = vec3(0);
+   vec3 lookat = vec3(0, 0, -1);
+   vec3 vup = vec3(0, 1, 0);
 
 private:
    vec2 view_size;
    vec3 pixel_delta_u, pixel_delta_v;
    vec3 viewport_u, viewport_v; 
    vec3 viewport_upper_left, pixel00_pos;
+   vec3 u, v, w;
 
 public:
    void initialize() {
          img_height = img_width * (float)aspect_ratio;
 
-         float scale = 2.0;
-         view_size = vec2(
-            scale * ((float)img_width / img_height),
-            scale
-         );
+         float focal_length = (lookfrom - lookat).length();
+         auto theta = degrees_to_radians(vfov);
+         auto h = std::tan(theta/2);
+         auto viewport_height = 2 * h * focal_length;
+         
+         view_size.y = 2 * h * focal_length;
+         view_size.x = view_size.y * (double(img_width)/img_height); 
 
-         viewport_u = vec3(view_size.x, 0, 0);
-         viewport_v = vec3(0, -view_size.y, 0);
+         w = normalize(lookfrom - lookat);
+         u = normalize(cross(vup, w));
+         v = cross(w, u);
+
+         viewport_u = view_size.x * u;
+         viewport_v = view_size.y * -v;
 
          pixel_delta_u = viewport_u / (float)img_width;
          pixel_delta_v = viewport_v / (float)img_height;
 
-         viewport_upper_left = position - vec3(0, 0, focal_length) - viewport_u/2.f - viewport_v/2.f;
+         viewport_upper_left = lookfrom - (focal_length * w) - viewport_u/2.f - viewport_v/2.f;
          pixel00_pos = viewport_upper_left + 0.5f * (pixel_delta_u + pixel_delta_v);
+
+         
       }
 
    ray create_ray(int x, int y) {
@@ -48,7 +61,7 @@ public:
          + (float(x + offset.x) * pixel_delta_u)
          + (float(y + offset.y) * pixel_delta_v);
 
-      return ray(position, pixel_center - position);
+      return ray(lookfrom, pixel_center - lookfrom);
    }
 
    void render(const hittable& world, Image& target) {
