@@ -31,48 +31,79 @@ void single_frame(Camera& camera, const Scene& scene, Image& image) {
 }
 
 int main() {
-    Camera camera;
-    camera.lookfrom = vec3(0, 1.f, 1.f);
-    camera.lookat = vec3(0, 0, -1);
+    Scene world;
+    auto ground_material = make_shared<lambertian>(vec3(0.5, 0.5, 0.5));
+    world.add(make_shared<Sphere>(vec3(0,-1000,0), 1000, ground_material));
 
-    camera.img_width = 128*4;
-    camera.aspect_ratio = 4.f/5.f;
-    camera.sample_per_pixel = 20;
-    camera.max_depth = 20;
-    camera.vfov = 60;
+    int floor = 6;
+    for (int a = -floor; a < floor; a++) {
+        for (int b = -floor; b < floor; b++) {
+            auto choose_mat = random_double();
+            vec3 center(a + 0.9*random_double(), 0.2, b + 0.9*random_double());
+
+            if ((center - vec3(4, 0.2, 0)).length() > 0.9) {
+                shared_ptr<material> sphere_material;
+
+                if (choose_mat < 0.8) {
+                    // diffuse
+                    auto albedo = ballRand(1.f);
+                    sphere_material = make_shared<lambertian>(albedo);
+                    world.add(make_shared<Sphere>(center, 0.2, sphere_material));
+                } else if (choose_mat < 0.95) {
+                    // metal
+                    auto albedo = ballRand(0.5f) + vec3(0.5);
+                    auto fuzz = random_double(0, 0.5);
+                    sphere_material = make_shared<metal>(albedo, fuzz);
+                    world.add(make_shared<Sphere>(center, 0.2, sphere_material));
+                } else {
+                    // glass
+                    sphere_material = make_shared<dielectric>(1.5);
+                    world.add(make_shared<Sphere>(center, 0.2, sphere_material));
+                }
+            }
+        }
+    }
+
+    auto material1 = make_shared<dielectric>(1.5);
+    world.add(make_shared<Sphere>(vec3(0, 1, 0), 1.0, material1));
+
+    auto material2 = make_shared<lambertian>(vec3(0.4, 0.2, 0.1));
+    world.add(make_shared<Sphere>(vec3(-4, 1, 0), 1.0, material2));
+
+    auto material3 = make_shared<metal>(vec3(0.7, 0.6, 0.5), 0.0);
+    world.add(make_shared<Sphere>(vec3(4, 1, 0), 1.0, material3));
+
+
+
+
+    Camera camera;
+    camera.aspect_ratio      = 4.0 / 5.0;
+    camera.img_width       =  800;
+    camera.sample_per_pixel = 200;
+    camera.max_depth         = 20;
+
+    camera.vfov     = 30;
+    camera.lookfrom = vec3(13,2,3);
+    camera.lookat   = vec3(0,0,0);
+    camera.vup      = vec3(0,1,0);
+
     camera.initialize();
 
     Image image(camera.img_width, camera.img_height, 3);
 
-    auto mat_light = make_shared<lambertian>(vec3(0.75f));
-    auto mat_red = make_shared<lambertian>(vec3(1, 0, 0));
-    auto mat_green = make_shared<lambertian>(vec3(0, 1, 0));
-
-    auto mat_mirror = make_shared<metal>(vec3(1.0), 0.0);
-    auto mat_matte_green_mirror = make_shared<metal>(vec3(0.8, 1., 0.8), 0.2);
-
-    auto mat_glass = make_shared<dielectric>(1.3);
-
-    Scene scene;
-    scene.add(make_shared<Sphere>(vec3(0, 0.05, -1), 0.4, mat_mirror));
-    scene.add(make_shared<Sphere>(vec3(0.7, -.1, -1), 0.3, mat_red));
-    scene.add(make_shared<Sphere>(vec3(-0.7,-.1, -1), 0.3, mat_matte_green_mirror));
-    scene.add(make_shared<Sphere>(vec3(0.3, 0.1, -0.4), 0.2, mat_glass));
-    scene.add(make_shared<Sphere>(vec3(0, -100, -1), 100.0-0.38, mat_light));
-
     std::filesystem::create_directory("./output/");
 
-    int frame = 60;
+    int frame = 180;
     float r = 2.f;
 
     for (int i = 0; i < frame; i++){
-        auto a = (float)i/frame * 2.f * pi;
-        camera.lookfrom = vec3(cosf(a)*r, 1, sinf(a)*r);
+        auto a = (float)i/frame * 2.f * pi + pi/2;
+        camera.lookfrom = vec3(cosf(a)*r + 6, 2.f, sinf(a)*r + 3);
 
-        single_frame(camera, scene, image);
+        single_frame(camera, world, image);
 
-        std::clog << std::format("Frame {}/{} -> {}", i, frame, (float)i/frame*100.f).c_str() << std::endl;
-        stbi_write_jpg(std::format("./output/render-{}.jpg", i).c_str(), image.width, image.height, image.channels, image.data, 100);
+        std::clog << std::format("Frame {}/{} -> {:.2f}%", i, frame, (float)i/frame*100.f).c_str() << std::endl;
+        stbi_write_png(std::format("./output/render-{}.png", i).c_str(), image.width, image.height, image.channels, image.data, 0);
     }
 
     return 0;
