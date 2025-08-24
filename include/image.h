@@ -37,6 +37,10 @@ public:
             return;
         }
 
+        // Edit the colors
+        // Add contrast
+        float contrast = 1.5f;
+        float brightness = 1.f;
         // Translate the [0,1] component values to the byte range [0,255].
         static const interval intensity(0.000, 0.999);
         int rbyte = int(256 * intensity.clamp(linear_to_gamma(color.r)));

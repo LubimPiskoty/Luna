@@ -19,9 +19,6 @@
 #include <format>
 #include <filesystem>
 
-#include <thread>
-#include <vector>
-
 using namespace std::chrono;
 using namespace glm;
 
@@ -35,26 +32,28 @@ void single_frame(Camera& camera, const Scene& scene, Image& image) {
 
 int main() {
     Scene world;
-    auto ground_material = make_shared<lambertian>(vec3(0.5, 0.5, 0.5));
+    auto ground_material = make_shared<lambertian>(vec3(0.3));
     world.add(make_shared<Sphere>(vec3(0,-1000,0), 1000, ground_material));
-
-    int floor = 3;
+  
+    srand(time(0));
+    int floor = 9;
     for (int a = -floor; a < floor; a++) {
         for (int b = -floor; b < floor; b++) {
             auto choose_mat = random_double();
             vec3 center(a + 0.9*random_double(), 0.2, b + 0.9*random_double());
 
-            if ((center - vec3(4, 0.2, 0)).length() > 0.9) {
+            if ((center - vec3(4, 0.2, 0)).length() > 1.3) {
                 shared_ptr<material> sphere_material;
+                vec3 random_color = vec3(random_double(0, 1), random_double(0, 1), random_double(0, 1));
 
-                if (choose_mat < 0.8) {
+                if (choose_mat < 0.6) {
                     // diffuse
-                    auto albedo = ballRand(1.f);
+                    auto albedo = random_color * vec3(random_double(0, 1), random_double(0, 1), random_double(0, 1));
                     sphere_material = make_shared<lambertian>(albedo);
                     world.add(make_shared<Sphere>(center, 0.2, sphere_material));
-                } else if (choose_mat < 0.95) {
+                } else if (choose_mat < 0.90) {
                     // metal
-                    auto albedo = ballRand(0.5f) + vec3(0.5);
+                    auto albedo = random_color/2.f + vec3(0.5);
                     auto fuzz = random_double(0, 0.5);
                     sphere_material = make_shared<metal>(albedo, fuzz);
                     world.add(make_shared<Sphere>(center, 0.2, sphere_material));
@@ -80,41 +79,36 @@ int main() {
 
 
     Camera camera;
-    camera.aspect_ratio      = 4.0 / 5.0;
-    camera.img_width       = 1000;
-    camera.sample_per_pixel = 200;
-    camera.max_depth         = 40;
+    camera.aspect_ratio      = 16.0 / 9.0;
+    camera.img_width       = 1280;
+    camera.sample_per_pixel = 500;
+    camera.max_depth         = 16;
 
-    camera.vfov     = 80;
-    camera.lookfrom = vec3(13,2,3);
-    camera.lookat   = vec3(0,0,0);
+    camera.vfov     = 20;
+    camera.lookfrom = vec3(13,1.4,3);
+    camera.lookat   = vec3(0,0.2,0);
     camera.vup      = vec3(0,1,0);
+
+    camera.defocus_angle = vec2(0.7f);
+    camera.focus_dist    = 10.0;
 
     camera.initialize();
 
 
     std::filesystem::create_directory("./output/");
 
-    int frame = 180;
-    float r = 5.f;
+    int frame = 1;
+    float r = 8.f;
 
-    std::vector<std::thread> threads;
+    Image image(camera.img_width, camera.img_height, 3);
     for (int i = 0; i < frame; i++){
-        threads.emplace_back([&camera, world, i, frame, r]() {
-            auto a = (float)i/frame * 2.f * pi + pi/2;
-            Camera cpy = camera;
-            cpy.lookfrom = vec3(cosf(a)*r, 2.f, sinf(a)*r);
-            cpy.initialize();
-            Image image(cpy.img_width, cpy.img_height, 3);
-            single_frame(cpy, world, image);
+        auto a = (float)i/frame * 2.f * pi + pi/2;
+        //camera.lookfrom = vec3(cosf(a)*r, 1.2f, sinf(a)*r);
+        single_frame(camera, world, image);
 
-            std::clog << std::format("Frame {}/{} -> {:.2f}%", i, frame, (float)i/frame*100.f).c_str() << std::endl;
-            stbi_write_png(std::format("./output/render-{}.png", i).c_str(), image.width, image.height, image.channels, image.data, 0);
-        });
+        std::clog << std::format("Frame {}/{} -> {:.2f}%", i, frame, (float)i/frame*100.f).c_str() << std::endl;
+        stbi_write_png(std::format("./output/render-{}.png", i).c_str(), image.width, image.height, image.channels, image.data, 0);
     }
-
-    for(auto& thread : threads)
-        thread.join();
 
     return 0;
 }
