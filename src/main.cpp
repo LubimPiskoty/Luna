@@ -19,6 +19,9 @@
 #include <format>
 #include <filesystem>
 
+#include <thread>
+#include <vector>
+
 using namespace std::chrono;
 using namespace glm;
 
@@ -35,7 +38,7 @@ int main() {
     auto ground_material = make_shared<lambertian>(vec3(0.5, 0.5, 0.5));
     world.add(make_shared<Sphere>(vec3(0,-1000,0), 1000, ground_material));
 
-    int floor = 6;
+    int floor = 3;
     for (int a = -floor; a < floor; a++) {
         for (int b = -floor; b < floor; b++) {
             auto choose_mat = random_double();
@@ -78,33 +81,40 @@ int main() {
 
     Camera camera;
     camera.aspect_ratio      = 4.0 / 5.0;
-    camera.img_width       =  800;
+    camera.img_width       = 1000;
     camera.sample_per_pixel = 200;
-    camera.max_depth         = 20;
+    camera.max_depth         = 40;
 
-    camera.vfov     = 30;
+    camera.vfov     = 80;
     camera.lookfrom = vec3(13,2,3);
     camera.lookat   = vec3(0,0,0);
     camera.vup      = vec3(0,1,0);
 
     camera.initialize();
 
-    Image image(camera.img_width, camera.img_height, 3);
 
     std::filesystem::create_directory("./output/");
 
     int frame = 180;
-    float r = 2.f;
+    float r = 5.f;
 
+    std::vector<std::thread> threads;
     for (int i = 0; i < frame; i++){
-        auto a = (float)i/frame * 2.f * pi + pi/2;
-        camera.lookfrom = vec3(cosf(a)*r + 6, 2.f, sinf(a)*r + 3);
+        threads.emplace_back([&camera, world, i, frame, r]() {
+            auto a = (float)i/frame * 2.f * pi + pi/2;
+            Camera cpy = camera;
+            cpy.lookfrom = vec3(cosf(a)*r, 2.f, sinf(a)*r);
+            cpy.initialize();
+            Image image(cpy.img_width, cpy.img_height, 3);
+            single_frame(cpy, world, image);
 
-        single_frame(camera, world, image);
-
-        std::clog << std::format("Frame {}/{} -> {:.2f}%", i, frame, (float)i/frame*100.f).c_str() << std::endl;
-        stbi_write_png(std::format("./output/render-{}.png", i).c_str(), image.width, image.height, image.channels, image.data, 0);
+            std::clog << std::format("Frame {}/{} -> {:.2f}%", i, frame, (float)i/frame*100.f).c_str() << std::endl;
+            stbi_write_png(std::format("./output/render-{}.png", i).c_str(), image.width, image.height, image.channels, image.data, 0);
+        });
     }
+
+    for(auto& thread : threads)
+        thread.join();
 
     return 0;
 }
