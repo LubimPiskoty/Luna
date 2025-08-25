@@ -1,114 +1,34 @@
-#include <cstdint>
-#define STB_IMAGE_IMPLEMENTATION
-#include <stb_image.h>
+#include "vulkan/vulkan_core.h"
+#define GLFW_INCLUDE_VULKAN
+#include <GLFW/glfw3.h>
 
-#define STBI_MSC_SECURE_CRT
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-#include <stb_image_write.h>
+#define GLM_FORCE_RADIANS
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#include <glm/mat4x4.hpp>
+#include <glm/vec4.hpp>
 #include <iostream>
 
-#include <helper.h>
-#include <image.h>
-#include <ray.h>
-#include <camera.h>
-#include <sphere.h>
-#include <scene.h>
-#include <material.h>
-
-#include <chrono>
-#include <format>
-#include <filesystem>
-
-using namespace std::chrono;
-using namespace glm;
-
-void single_frame(Camera& camera, const Scene& scene, Image& image) {
-    auto start = high_resolution_clock::now();
-    camera.render(scene, image);
-    auto stop = high_resolution_clock::now();
-    auto duration = duration_cast<seconds>(stop - start);
-    std::cout << "Rendering took: " << duration.count() << "sec" << std::endl;
-}
-
 int main() {
-    Scene world;
-    auto ground_material = make_shared<lambertian>(vec3(0.3));
-    world.add(make_shared<Sphere>(vec3(0,-1000,0), 1000, ground_material));
-  
-    srand(time(0));
-    int floor = 9;
-    for (int a = -floor; a < floor; a++) {
-        for (int b = -floor; b < floor; b++) {
-            auto choose_mat = random_double();
-            vec3 center(a + 0.9*random_double(), 0.2, b + 0.9*random_double());
+    glfwInit();
 
-            if ((center - vec3(4, 0.2, 0)).length() > 1.3) {
-                shared_ptr<material> sphere_material;
-                vec3 random_color = vec3(random_double(0, 1), random_double(0, 1), random_double(0, 1));
+    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+    GLFWwindow* window = glfwCreateWindow(600, 600, "Luna", nullptr, nullptr);
 
-                if (choose_mat < 0.6) {
-                    // diffuse
-                    auto albedo = random_color * vec3(random_double(0, 1), random_double(0, 1), random_double(0, 1));
-                    sphere_material = make_shared<lambertian>(albedo);
-                    world.add(make_shared<Sphere>(center, 0.2, sphere_material));
-                } else if (choose_mat < 0.90) {
-                    // metal
-                    auto albedo = random_color/2.f + vec3(0.5);
-                    auto fuzz = random_double(0, 0.5);
-                    sphere_material = make_shared<metal>(albedo, fuzz);
-                    world.add(make_shared<Sphere>(center, 0.2, sphere_material));
-                } else {
-                    // glass
-                    sphere_material = make_shared<dielectric>(1.5);
-                    world.add(make_shared<Sphere>(center, 0.2, sphere_material));
-                }
-            }
-        }
+    uint32_t extensionCount = 0;
+    vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
+
+    std::cout << extensionCount << " extensions supported!!" << std::endl;
+
+    glm::mat4 matrix;
+    glm::vec4 vec4;
+    auto test = matrix * vec4;
+
+    while (!glfwWindowShouldClose(window)) {
+        glfwPollEvents();
     }
 
-    auto material1 = make_shared<dielectric>(1.5);
-    world.add(make_shared<Sphere>(vec3(0, 1, 0), 1.0, material1));
-
-    auto material2 = make_shared<lambertian>(vec3(0.4, 0.2, 0.1));
-    world.add(make_shared<Sphere>(vec3(-4, 1, 0), 1.0, material2));
-
-    auto material3 = make_shared<metal>(vec3(0.7, 0.6, 0.5), 0.0);
-    world.add(make_shared<Sphere>(vec3(4, 1, 0), 1.0, material3));
-
-
-
-
-    Camera camera;
-    camera.aspect_ratio      = 16.0 / 9.0;
-    camera.img_width       = 1280;
-    camera.sample_per_pixel = 500;
-    camera.max_depth         = 16;
-
-    camera.vfov     = 20;
-    camera.lookfrom = vec3(13,1.4,3);
-    camera.lookat   = vec3(0,0.2,0);
-    camera.vup      = vec3(0,1,0);
-
-    camera.defocus_angle = vec2(0.7f);
-    camera.focus_dist    = 10.0;
-
-    camera.initialize();
-
-
-    std::filesystem::create_directory("./output/");
-
-    int frame = 1;
-    float r = 8.f;
-
-    Image image(camera.img_width, camera.img_height, 3);
-    for (int i = 0; i < frame; i++){
-        auto a = (float)i/frame * 2.f * pi + pi/2;
-        //camera.lookfrom = vec3(cosf(a)*r, 1.2f, sinf(a)*r);
-        single_frame(camera, world, image);
-
-        std::clog << std::format("Frame {}/{} -> {:.2f}%", i, frame, (float)i/frame*100.f).c_str() << std::endl;
-        stbi_write_png(std::format("./output/render-{}.png", i).c_str(), image.width, image.height, image.channels, image.data, 0);
-    }
+    glfwDestroyWindow(window);
+    glfwTerminate();
 
     return 0;
 }
